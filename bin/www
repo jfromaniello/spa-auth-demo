@@ -1,0 +1,8 @@
+require('dotenv').config();
+const app = require('../server');
+
+const debug = require('debug')('app:boot');
+
+const port = process.env.PORT || 3000;
+
+app.listen(port, () => debug(`Application listening on port ${port}`));
