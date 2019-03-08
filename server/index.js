@@ -5,7 +5,7 @@ const debug = require('debug')('app:server');
 const session = require('express-session');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
-const { auth } = require('express-openid-connect');
+const { auth, requiresAuth } = require('express-openid-connect');
 const { join } = require('path');
 const hbs = require('express-hbs');
 
@@ -16,11 +16,9 @@ const appSecret = process.env.APP_SECRET || 'keyboard cat';
 app.use(helmet());
 app.use(morgan('dev', { stream: { write: m => debug(m) } }));
 
-app.use(
-  session({ secret: appSecret, resave: false, saveUninitialized: false })
-);
-
 app.use(cookieParser(appSecret));
+
+app.use(session({ secret: appSecret }));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(express.static(join(__dirname, '../', 'public')));
@@ -46,9 +44,15 @@ app.set('view engine', 'hbs');
 app.set('views', join(__dirname, '..', 'views'));
 
 // Api routing
-app.use('/api', auth(), require('./api'));
+app.use('/api', requiresAuth(), require('./api'));
 
-app.get('/*', auth({ required: false }), (req, res) => {
+app.use(
+  auth({
+    required: req => req.originalUrl !== '/'
+  })
+);
+
+app.get('/*', (req, res) => {
   res.render('index', {
     clientState: {
       user: userInfo(req.openid.user),
@@ -56,7 +60,5 @@ app.get('/*', auth({ required: false }), (req, res) => {
     }
   });
 });
-
-app.use(auth());
 
 module.exports = app;
